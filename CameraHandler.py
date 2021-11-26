@@ -1,6 +1,7 @@
+from loguru import logger
+from queue import Queue
 import gphoto2 as gp
 import threading
-from queue import Queue
 import time
 import os
 
@@ -29,14 +30,14 @@ class CameraHandler():
             else:
                 print("save path not exist")
         except Exception as err:
-            print(err)
+            logger.exception(err)
 
     def connect(self, timeout=30):
         self.camera = gp.Camera()
 
         t0 = time.time()
         t1 = time.time()
-        print("Searching Camera...")
+        logger.info("Searching Camera...")
         while t1 - t0 < timeout:
             try:
                 self.camera.init()
@@ -47,14 +48,14 @@ class CameraHandler():
                     continue
 
                 raise Exception(err)
-            print("camera connected")
+            logger.info("camera connected")
             break
         else:
-            print("timeout %ds, camera not found"%timeout)
+            logger.error("timeout %ds, camera not found"%timeout)
 
     def disconnect(self):
         self.camera.exit()
-        print("camera disconnected")
+        logger.info("camera disconnected")
 
     def take_photo(self):
         '''
@@ -81,11 +82,11 @@ class CameraHandler():
                     filepath_list.append(temp)
                 num -= 1
             except Exception as err:
-                print(err)
+                logger.exception(err)
                 if num_err > 0:
                     num_err -= 1
                 else:
-                    print("Take photo error!")
+                    logger.info("Take photo error!")
                     break
 
             time.sleep(interval)
@@ -177,4 +178,4 @@ class CameraHandler():
 
 
 if __name__ == '__main__':
-    handler = CameraHandler("./test")
+    handler = CameraHandler("/home/cqj")
