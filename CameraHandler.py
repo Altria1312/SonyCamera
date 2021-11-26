@@ -24,12 +24,13 @@ class CameraHandler():
 
 
     def add_save_path(self, save_path):
-        try:
-            if os.path.exists(save_path):
-                self.save_path = save_path
-                os.popen("sudo chmod 777 %s"%save_path, "w").write(self.passwd)
-            else:
-                print("save path not exist")
+        try:            
+            self.save_path = save_path
+            if not os.path.exists(save_path):
+                logger.warning("save path not exist, building dir...")
+                os.popen("sudo mkdir %s"%self.save_path, "w").write("%s\n"%self.passwd)
+
+            os.popen("sudo chmod 777 %s"%save_path, "w").write("%s\n"%self.passwd)
         except Exception as err:
             logger.exception(err)
 
@@ -55,6 +56,7 @@ class CameraHandler():
             logger.error("timeout %ds, camera not found"%timeout)
 
     def disconnect(self):
+        self.asnyc_stop = True
         self.camera.exit()
         logger.info("camera disconnected")
 
@@ -64,7 +66,8 @@ class CameraHandler():
         :return: CameraFilePath *
         '''
         return self.camera.capture(gp.GP_CAPTURE_IMAGE)
-
+    
+    @asnyc_thread
     def take_photos(self, num=1, interval=1):
         '''
 
@@ -81,10 +84,13 @@ class CameraHandler():
                     self.filepath_queue.put((temp.folder, temp.name))
                 else:
                     filepath_list.append(temp)
+
+                logger.info("taking photo %s"%temp.name)
                 num -= 1
             except Exception as err:
                 logger.exception(err)
                 if num_err > 0:
+                    logger.warning("taking wrong, retry")
                     num_err -= 1
                 else:
                     logger.info("Take photo error!")
@@ -139,15 +145,19 @@ class CameraHandler():
                             continue
 
                         self.loc_files.append(name)
+                        logger.info("%s saved"%name)
                         break
                     except Exception as err:
+                        logger.warning("%s failed, retrying..."%name)
                         time.sleep(0.2)
                         num_err -= 1
                 else:
                     self.failed_list.append(name)
+                    logger.error("%s saved failed"%name)
 
     @asnyc_thread
     def save_auto_by_queue(self):
+        self.get_local_files()
         while not self.asnyc_stop:
             num_err = 5
             while num_err > 0:
@@ -160,12 +170,16 @@ class CameraHandler():
                         continue
 
                     self.loc_files.append(name)
+                    logger.info("%s saved"%name)
                     break
                 except Exception as err:
+                    logger.exception(err)
+                    logger.warning("%s failed, retrying..."%name)
                     time.sleep(0.2)
                     num_err -= 1
             else:
                 self.failed_list.append(name)
+                logger.error("%s saved failed"%name)
 
 
     def change_config(self, config_name, value):
@@ -176,9 +190,25 @@ class CameraHandler():
         except Exception as err:
             print(err)
 
+    def take_photos_save(self, num=1):
+        self.take_photos(num)        
+        logger.info("start taking photo")
+        time.sleep(2)
+        self.save_auto_by_list()
+        logger.info("start saving photo")
+        
+
+
     def init(self):
-        self.connect()
         logger.add(self.log_file)
+        logger.info("===========new task==============")
+        self.connect()
+    
+    @asnyc_thread
+    def io_test(self):
+        while not self.asnyc_stop:
+            data = self.camera.wait_for_event(10)[1]
+            print(data)
 
 if __name__ == '__main__':
     handler = CameraHandler("/home/cqj")
