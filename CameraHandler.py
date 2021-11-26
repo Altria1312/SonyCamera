@@ -19,6 +19,7 @@ class CameraHandler():
         self.add_save_path(save_path)
         self.failed_list =[]
         self.asnyc_stop = False
+        self.log_file = "./sonylog.log"
         if use_queue: self.filepath_queue = Queue(100)
 
 
@@ -175,7 +176,9 @@ class CameraHandler():
         except Exception as err:
             print(err)
 
-
+    def init(self):
+        self.connect()
+        logger.add(self.log_file)
 
 if __name__ == '__main__':
     handler = CameraHandler("/home/cqj")
