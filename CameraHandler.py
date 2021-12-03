@@ -246,9 +246,8 @@ class CameraHandler():
         t2 = self.save_auto_by_queue()
         logger.info("start saving photo")
 
-        self.disconnect()
-
         t1.join()
+        self.disconnect()
         t2.join()
         print("done")
 
