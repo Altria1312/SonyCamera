@@ -10,6 +10,8 @@ def asnyc_thread(f):
         t = threading.Thread(target=f, args=args, kwargs=kwargs)
         t.start()
 
+        return t
+
     return warp
 
 
@@ -236,6 +238,19 @@ class CameraHandler():
         time.sleep(2)
         self.save_auto_by_list()
         logger.info("start saving photo")
+
+    def trigger_captures_save(self, num=1):
+        t1 = self.trigger_captures(num)
+        logger.info("start taking photo")
+        time.sleep(2)
+        t2 = self.save_auto_by_queue()
+        logger.info("start saving photo")
+
+        self.disconnect()
+
+        t1.join()
+        t2.join()
+        print("done")
 
     def init(self):
         logger.add(self.log_file)
