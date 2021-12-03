@@ -66,6 +66,13 @@ class CameraHandler():
         :return: CameraFilePath *
         '''
         return self.camera.capture(gp.GP_CAPTURE_IMAGE)
+
+    def trigger_capture(self):
+        self.camera.trigger_capture()
+        while 1:
+            event, data = self.camera.wait_for_event(10)
+            if event == gp.GP_EVENT_FILE_ADDED:
+                return data
     
     @asnyc_thread
     def take_photos(self, num=1, interval=1):
@@ -80,6 +87,39 @@ class CameraHandler():
         while num != 0:
             try:
                 temp = self.take_photo()
+                if hasattr(self, "filepath_queue"):
+                    self.filepath_queue.put((temp.folder, temp.name))
+                else:
+                    filepath_list.append(temp)
+
+                logger.info("taking photo %s"%temp.name)
+                num -= 1
+            except Exception as err:
+                logger.exception(err)
+                if num_err > 0:
+                    logger.warning("taking wrong, retry")
+                    num_err -= 1
+                else:
+                    logger.info("Take photo error!")
+                    break
+
+            time.sleep(interval)
+
+        return filepath_list
+
+    @asnyc_thread
+    def trigger_captures(self, num=1, interval=1):
+        '''
+
+        :param num: 拍照数量， 小于0为无限拍照模式
+        :param interval: 拍照间隔（s）
+        :return: CameraFilePath list
+        '''
+        num_err = 5    # 容许错误次数
+        filepath_list = []
+        while num != 0:
+            try:
+                temp = self.trigger_capture()
                 if hasattr(self, "filepath_queue"):
                     self.filepath_queue.put((temp.folder, temp.name))
                 else:
@@ -196,8 +236,6 @@ class CameraHandler():
         time.sleep(2)
         self.save_auto_by_list()
         logger.info("start saving photo")
-        
-
 
     def init(self):
         logger.add(self.log_file)
